@@ -1,9 +1,9 @@
 import time
 from datetime import datetime
-from nose import SkipTest
 
 from beaker import util
 from beaker.cache import CacheManager, cache_region, region_invalidate
+from nose import SkipTest
 
 defaults = {'cache.data_dir': './cache', 'cache.type': 'dbm', 'cache.expire': 2}
 
@@ -341,14 +341,14 @@ def test_use_key_option_as_cache_key_for_args():
     cache = make_cache_obj()
 
     @cache.cache('test_cache', key="{key1}{key2}", time=0.1)
-    def test_cache(key1, key2):
+    def test_cache(key1, key2, key3):
         return time.time()
 
-    result = test_cache('k1', 'k2')
-    result1 = test_cache('k1', 'k2')
+    result = test_cache('k1', 'k2', 'k3')
+    result1 = test_cache('k1', 'k2', 'k4')
     assert result == result1
 
     time.sleep(1)
-    result2 = test_cache('k1', 'k2')
+    result2 = test_cache('k1', 'k2', 'k3')
 
     assert result != result2
