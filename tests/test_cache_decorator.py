@@ -1,38 +1,44 @@
 import time
 from datetime import datetime
 
-import beaker.cache as cache
-from beaker.cache import CacheManager, cache_region, region_invalidate
 from beaker import util
+from beaker.cache import CacheManager, cache_region, region_invalidate
 from nose import SkipTest
 
-defaults = {'cache.data_dir':'./cache', 'cache.type':'dbm', 'cache.expire': 2}
+defaults = {'cache.data_dir': './cache', 'cache.type': 'dbm', 'cache.expire': 2}
+
 
 def teardown():
     import shutil
     shutil.rmtree('./cache', True)
 
+
 @cache_region('short_term')
 def fred(x):
     return time.time()
 
+
 @cache_region('short_term')
 def george(x):
     return time.time()
+
 
 @cache_region('short_term')
 def albert(x):
     """A doc string"""
     return time.time()
 
+
 @cache_region('short_term')
 def alfred(x, xx, y=None):
     return str(time.time()) + str(x) + str(xx) + str(y)
+
 
 class AlfredCacher(object):
     @cache_region('short_term')
     def alfred_self(self, xx, y=None):
         return str(time.time()) + str(self) + str(xx) + str(y)
+
 
 try:
     from .annotated_functions import AnnotatedAlfredCacher
@@ -46,13 +52,17 @@ def make_cache_obj(**kwargs):
     cache = CacheManager(**util.parse_cache_config_options(opts))
     return cache
 
+
 def make_cached_func(**opts):
     cache = make_cache_obj(**opts)
+
     @cache.cache()
     def load(person):
         now = datetime.now()
         return "Hi there %s, its currently %s" % (person, now)
+
     return cache, load
+
 
 def make_region_cached_func():
     opts = {}
@@ -64,7 +74,9 @@ def make_region_cached_func():
     def load(person):
         now = datetime.now()
         return "Hi there %s, its currently %s" % (person, now)
+
     return load
+
 
 def make_region_cached_func_2():
     opts = {}
@@ -76,7 +88,9 @@ def make_region_cached_func_2():
     def load_person(person):
         now = datetime.now()
         return "Hi there %s, its currently %s" % (person, now)
+
     return load_person
+
 
 def test_check_region_decorator():
     func = make_region_cached_func()
@@ -95,11 +109,13 @@ def test_check_region_decorator():
     result2 = func('Fred')
     assert result != result2
 
+
 def test_different_default_names():
     result = fred(1)
     time.sleep(0.1)
     result2 = george(1)
     assert result != result2
+
 
 def test_check_invalidate_region():
     func = make_region_cached_func()
@@ -140,6 +156,7 @@ def test_check_invalidate_region_2():
     region_invalidate(func, None, 'Fredd')
     assert result3 == result2
 
+
 def test_invalidate_cache():
     cache, func = make_cached_func()
     val = func('foo')
@@ -150,6 +167,7 @@ def test_invalidate_cache():
     cache.invalidate(func, 'foo')
     val3 = func('foo')
     assert val3 != val
+
 
 def test_class_key_cache():
     cache = make_cache_obj()
@@ -170,12 +188,14 @@ def test_class_key_cache():
     assert cache.get_cache(ns).get('method 1 2') == x
     assert cache.get_cache(ns).get('standalone 1 2') == y
 
+
 def test_func_namespace():
     def go(x, y):
         return "hi standalone"
 
     assert 'test_cache_decorator' in util.func_namespace(go)
     assert util.func_namespace(go).endswith('go')
+
 
 def test_class_key_region():
     opts = {}
@@ -198,6 +218,7 @@ def test_class_key_region():
     assert cache.get_cache_region(ns, 'short_term').get('method 1 2') == x
     assert cache.get_cache_region(ns, 'short_term').get('standalone 1 2') == y
 
+
 def test_classmethod_key_region():
     opts = {}
     opts['cache.regions'] = 'short_term'
@@ -213,6 +234,7 @@ def test_classmethod_key_region():
     x = Foo.go(1, 2)
     ns = Foo.go._arg_namespace
     assert cache.get_cache_region(ns, 'short_term').get('method 1 2') == x
+
 
 def test_class_key_region_invalidate():
     opts = {}
@@ -237,6 +259,7 @@ def test_class_key_region_invalidate():
 
     assert x == y
     assert x != z
+
 
 def test_check_region_decorator_keeps_docstring_and_name():
     result = albert(1)
@@ -312,3 +335,20 @@ def test_check_region_decorator_with_kwargs_self_and_annotations():
 
     result6 = a2.alfred_self(6, 'blah')
     assert result != result6
+
+
+def test_use_key_option_as_cache_key_for_args():
+    cache = make_cache_obj()
+
+    @cache.cache('test_cache', key="{key1}{key2}", time=0.1)
+    def test_cache(key1, key2, key3):
+        return time.time()
+
+    result = test_cache('k1', 'k2', 'k3')
+    result1 = test_cache('k1', 'k2', 'k4')
+    assert result == result1
+
+    time.sleep(1)
+    result2 = test_cache('k1', 'k2', 'k3')
+
+    assert result != result2
